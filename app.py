@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_mic_recorder import mic_recorder
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -168,7 +169,15 @@ with tab1:
                         st.error("Audio play karne mein samasya aayi.")
 
     uploaded_map = st.file_uploader("📂 School ka Map (Image) upload karein (Optional):", type=["jpg", "jpeg", "png"])
+# माइक रिकॉर्डर कॉम्पोनेंट
+audio = mic_recorder(
+    start_prompt="बोलकर सवाल पूछने के लिए क्लिक करें",
+    stop_prompt="रिकॉर्डिंग रोकें",
+    key='mic'
+)
 
+if audio:
+    st.audio(audio['bytes'])
     prompt = st.chat_input("Yahan apna sawaal pyar se pucheye...")
     if quick_query:
         prompt = quick_query
