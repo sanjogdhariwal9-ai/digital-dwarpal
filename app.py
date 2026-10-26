@@ -173,46 +173,28 @@ with tab1:
 # 1. लिखने के लिए चैट इनपुट बॉक्स
 user_query = st.chat_input("अपना सवाल यहाँ टाइप करें...")
 
-# 2. बोलने के लिए माइक रिकॉर्डर बटन
+from streamlit_mic_recorder import mic_recorder
+
+# 1. लिखने के लिए चैट इनपुट बॉक्स
+user_query = st.chat_input("अपना सवाल यहाँ टाइप करें या नीचे माइक दबाएं...")
+
+# 2. सिर्फ माइक का आइकॉन/बटन बनाने के लिए
+# यहाँ हमने प्रॉम्प्ट को छोटा कर दिया है ताकि यह बटन जैसा दिखे
 audio = mic_recorder(
-    start_prompt="बोलकर सवाल पूछने के लिए क्लिक करें",
-    stop_prompt="रिकॉर्डिंग रोकें",
-    key='mic'
+    start_prompt="🎙️", 
+    stop_prompt="⏹️", 
+    key='mic_button'
 )
 
-# तय करो कि यूज़र ने टाइप किया है या बोलकर भेजा है
 prompt = None
 
 if user_query:
     prompt = user_query
 elif audio:
-    # ऑडियो को प्ले करने और कैप्चर करने के लिए
+    # जब आप माइक पर बोलेंगे और वह रिकॉर्ड हो जाएगा
     st.audio(audio['bytes'])
-    # यदि आप ऑडियो बाइट्स को टेक्स्ट में बदलना चाहते हैं, तो वह लॉजिक यहाँ आ सकता है
-    # अभी के लिए यह ऑडियो रिकॉर्ड करके प्ले करेगा
-
-# अगर प्रॉम्प्ट (लिखा हुआ सवाल) मिल गया है, तो Gemini को भेजो
-if prompt:
-    # यूज़र का सवाल चैट में सेव और शो करें
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.write(prompt)
-
-    # Gemini से जवाब मंगाने का कोड
-    with st.spinner("जवाब तैयार किया जा रहा है..."):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
-            bot_reply = response.text
-            
-            # AI का जवाब चैट में सेव और शो करें
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-            with st.chat_message("assistant"):
-                st.write(bot_reply)
-        except Exception as e:
-            st.error(f"Error: {e}")
+    # ध्यान दें: ब्राउज़र जब पहली बार माइक दबाएंगे, तो यह आपसे ऊपर पॉप-अप में 'Allow' (परमिशन) मांगेगा।
+    # अगर परमिशन ब्लॉक है, तो ब्राउज़र के एड्रेस बार में जाकर माइक की परमिशन 'Allow' करें।
 
 
 if audio:
