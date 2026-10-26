@@ -1,19 +1,9 @@
 import streamlit as st
 from streamlit_mic_recorder import mic_recorder
 from google import genai
-from google.genai import types
 from PIL import Image
 from gtts import gTTS
 import os
-
-# --- Automatic Gemini Client Setup ---
-client = None
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
-    client = genai.Client()
-except Exception as e:
-    client = None
 
 # 1. Page Configuration & Theme Settings
 st.set_page_config(
@@ -58,7 +48,26 @@ with st.sidebar:
     st.header("⚙️ Developer & Admin Panel")
     st.write("Secure login for school management & API setup.")
     
+    st.subheader("🔑 Gemini API Key Setup")
     
+    # 3. Automatic / Manual Client Setup using new genai.Client
+    client = None
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+    except Exception:
+        pass
+
+    user_api_key = st.text_input("Enter Gemini API Key (Optional if in secrets):", type="password", value="")
+    
+    if user_api_key:
+        client = genai.Client(api_key=user_api_key)
+        st.success("✅ API Key Configured!")
+    elif client:
+        st.success("✅ Loaded API Key from Secrets!")
+    else:
+        st.warning("⚠️ Please enter your Gemini API Key below to activate AI responses.")
+
     st.markdown("---")
     admin_password = st.text_input("Enter Developer Password:", type="password")
     
@@ -118,12 +127,12 @@ Your Personality & Behavior:
 - Extremely friendly, warm, welcoming, and polite like a favorite school guide.
 - Use respectful words like "Namaste", "Aapka swagat hai".
 - Occasionally include light-hearted, respectful, and sweet school-related jokes or quotes.
-- Answer all questions accurately using the provided school details.
+- Answer all questions accurately using the provided school details, and also freely answer any general or random questions (science, history, actors, chemistry, etc.) asked by the user.
 """
 
 # 3. UI Header
 st.title(f"{current_info['app_icon']} Digital Dwarpal - {current_info['school_name']}")
-st.markdown(f"*\"Swagat hai! Main aapka Digital Dwarpal hoon. School ki jankari, class incharges, aur admission ke baare mein puchiye!\"*")
+st.markdown(f"*\"Swagat hai! Main aapka Digital Dwarpal hoon. School ki jankari, class incharges, ya admission ke baare mein puchiye, ya koi bhi sawal kijiye!\"*")
 st.write("---")
 
 # 4. Tabs for Chat & Complaint Box
@@ -152,6 +161,7 @@ with tab1:
 
     st.markdown("---")
 
+    # Display chat history safely
     for idx, message in enumerate(st.session_state.chat_messages):
         with st.chat_message(message["role"]):
             if "image" in message and message["image"]:
@@ -169,36 +179,33 @@ with tab1:
                         st.error("Audio play karne mein samasya aayi.")
 
     uploaded_map = st.file_uploader("📂 School ka Map (Image) upload karein (Optional):", type=["jpg", "jpeg", "png"])
-# माइक रिकॉर्डर कॉम्पोनेंट
-# 1. लिखने के लिए चैट इनपुट बॉक्स
-user_query = st.chat_input("अपना सवाल यहाँ टाइप करें...")
 
-from streamlit_mic_recorder import mic_recorder
+    # Input controls layout (Text input + Mic button)
+    col_input1, col_input2 = st.columns([6, 1])
+    
+    with col_input1:
+        user_query = st.chat_input("Yahan apna sawaal type karein (Chemistry, Actor ya School ki jankari)...")
+    
+    with col_input2:
+        # Mic recorder button
+        audio = mic_recorder(
+            start_prompt="🎙️", 
+            stop_prompt="⏹️", 
+            key='unique_mic_button'
+        )
 
-from streamlit_mic_recorder import mic_recorder
+    prompt = None
 
-# 1. लिखने के लिए चैट इनपुट बॉक्स
-user_query = st.chat_input("अपना सवाल यहाँ टाइप करें या नीचे माइक दबाएं...")
+    if quick_query:
+        prompt = quick_query
+    elif user_query:
+        prompt = user_query
+    elif audio:
+        st.audio(audio['bytes'])
+        prompt = "नमस्ते, मैंने माइक से सवाल पूछा है।"
 
-# 2. सिर्फ माइक का आइकॉन/बटन बनाने के लिए
-# यहाँ हमने प्रॉम्प्ट को छोटा कर दिया है ताकि यह बटन जैसा दिखे
-audio = mic_recorder(
-    start_prompt="🎙️", 
-    stop_prompt="⏹️", 
-    key='mic_button'
-)
-
-prompt = None
-
-if user_query:
-    prompt = user_query
-elif audio:
-    # जब आप माइक पर बोलेंगे और वह रिकॉर्ड हो जाएगा
-    st.audio(audio['bytes'])
-    # ध्यान दें: ब्राउज़र जब पहली बार माइक दबाएंगे, तो यह आपसे ऊपर पॉप-अप में 'Allow' (परमिशन) मांगेगा।
-    # अगर परमिशन ब्लॉक है, तो ब्राउज़र के एड्रेस बार में जाकर माइक की परमिशन 'Allow' करें।
     if prompt:
-        if not user_api_key:
+        if not client:
             st.error("⚠️ Pehle sidebar mein apni Gemini API Key enter karein!")
         else:
             img = None
@@ -211,6 +218,7 @@ elif audio:
                 except Exception:
                     pass
 
+            # Append user message and display
             st.session_state.chat_messages.append({"role": "user", "content": prompt, "image": img})
             
             with st.chat_message("user"):
@@ -220,11 +228,14 @@ elif audio:
 
             with st.spinner("Jawab tyaar kiya ja raha hai..."):
                 try:
-                    model = genai.GenerativeModel(
-                        model_name="gemini-1.5-flash",
-                        system_instruction=secure_system_instruction
+                    # New google-genai SDK call format with system instruction
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=content_to_send,
+                        config={
+                            'system_instruction': secure_system_instruction
+                        }
                     )
-                    response = model.generate_content(content_to_send)
                     bot_reply = response.text
                 except Exception as e:
                     bot_reply = f"Kshama karein, takneekee dikkat aa gayi: {e}"
@@ -232,6 +243,7 @@ elif audio:
                 st.session_state.chat_messages.append({"role": "assistant", "content": bot_reply})
                 st.rerun()
 
+    st.markdown("---")
     col_c1, col_c2 = st.columns(2)
     with col_c1:
         if st.button("🗑️ Clear Chat History"):
