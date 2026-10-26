@@ -170,11 +170,50 @@ with tab1:
 
     uploaded_map = st.file_uploader("📂 School ka Map (Image) upload karein (Optional):", type=["jpg", "jpeg", "png"])
 # माइक रिकॉर्डर कॉम्पोनेंट
+# 1. लिखने के लिए चैट इनपुट बॉक्स
+user_query = st.chat_input("अपना सवाल यहाँ टाइप करें...")
+
+# 2. बोलने के लिए माइक रिकॉर्डर बटन
 audio = mic_recorder(
     start_prompt="बोलकर सवाल पूछने के लिए क्लिक करें",
     stop_prompt="रिकॉर्डिंग रोकें",
     key='mic'
 )
+
+# तय करो कि यूज़र ने टाइप किया है या बोलकर भेजा है
+prompt = None
+
+if user_query:
+    prompt = user_query
+elif audio:
+    # ऑडियो को प्ले करने और कैप्चर करने के लिए
+    st.audio(audio['bytes'])
+    # यदि आप ऑडियो बाइट्स को टेक्स्ट में बदलना चाहते हैं, तो वह लॉजिक यहाँ आ सकता है
+    # अभी के लिए यह ऑडियो रिकॉर्ड करके प्ले करेगा
+
+# अगर प्रॉम्प्ट (लिखा हुआ सवाल) मिल गया है, तो Gemini को भेजो
+if prompt:
+    # यूज़र का सवाल चैट में सेव और शो करें
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
+
+    # Gemini से जवाब मंगाने का कोड
+    with st.spinner("जवाब तैयार किया जा रहा है..."):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            bot_reply = response.text
+            
+            # AI का जवाब चैट में सेव और शो करें
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+            with st.chat_message("assistant"):
+                st.write(bot_reply)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 
 if audio:
     st.audio(audio['bytes'])
