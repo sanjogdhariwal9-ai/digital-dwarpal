@@ -175,6 +175,8 @@ user_query = st.chat_input("अपना सवाल यहाँ टाइप 
 
 from streamlit_mic_recorder import mic_recorder
 
+from streamlit_mic_recorder import mic_recorder
+
 # 1. लिखने के लिए चैट इनपुट बॉक्स
 user_query = st.chat_input("अपना सवाल यहाँ टाइप करें या नीचे माइक दबाएं...")
 
@@ -195,14 +197,6 @@ elif audio:
     st.audio(audio['bytes'])
     # ध्यान दें: ब्राउज़र जब पहली बार माइक दबाएंगे, तो यह आपसे ऊपर पॉप-अप में 'Allow' (परमिशन) मांगेगा।
     # अगर परमिशन ब्लॉक है, तो ब्राउज़र के एड्रेस बार में जाकर माइक की परमिशन 'Allow' करें।
-
-
-if audio:
-    st.audio(audio['bytes'])
-    prompt = st.chat_input("Yahan apna sawaal pyar se pucheye...")
-    if quick_query:
-        prompt = quick_query
-
     if prompt:
         if not user_api_key:
             st.error("⚠️ Pehle sidebar mein apni Gemini API Key enter karein!")
