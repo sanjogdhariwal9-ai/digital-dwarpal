@@ -1,8 +1,18 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image
 from gtts import gTTS
 import os
+
+# --- Automatic Gemini Client Setup ---
+client = None
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
+    client = genai.Client()
+except Exception as e:
+    client = None
 
 # 1. Page Configuration & Theme Settings
 st.set_page_config(
@@ -47,15 +57,7 @@ with st.sidebar:
     st.header("⚙️ Developer & Admin Panel")
     st.write("Secure login for school management & API setup.")
     
-    st.subheader("🔑 Gemini API Key Setup")
-    user_api_key = st.text_input("Enter Gemini API Key:", type="password", value="")
     
-    if user_api_key:
-        genai.configure(api_key=user_api_key)
-        st.success("✅ API Key Configured!")
-    else:
-        st.warning("⚠️ Please enter your Gemini API Key below to activate AI responses.")
-
     st.markdown("---")
     admin_password = st.text_input("Enter Developer Password:", type="password")
     
